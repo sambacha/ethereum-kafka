@@ -1,0 +1,72 @@
+install:
+  #update /etc/hosts
+  
+  mkdir -p /data/kafka
+  chown -R 1001:1001 /data/kafka
+  
+  mkdir -p kafka/config && cd $_
+  wget https://repo1.maven.org/maven2/io/prometheus/jmx/jmx_prometheus_javaagent/0.15.0/jmx_prometheus_javaagent-0.15.0.jar
+  wget https://raw.githubusercontent.com/prometheus/jmx_exporter/master/example_configs/kafka-2_0_0.yml
+  cd ..
+  vi kafka/server.properties
+  
+  
+  docker run --name kafka \
+  --network host \
+  --restart always \
+  -e ALLOW_PLAINTEXT_LISTENER=yes \
+  -e KAFKA_OPTS="-javaagent:/opt/bitnami/kafka/conf/jmx_prometheus_javaagent-0.15.0.jar=8080:/opt/bitnami/kafka/conf/kafka-2_0_0.yml" \
+  -v /home/ubuntu/kafka/server.properties:/bitnami/kafka/config/server.properties \
+  -v /data/kafka:/data/kafka \
+  -v /home/ubuntu/kafka/config:/opt/bitnami/kafka/conf \
+  bitnami/kafka:latest
+kafkaBrokerOptimizations:
+  > ## Optimizations
+  >
+  > - Format the EBS with the XFS format as it to have better performance characteristics [source](https://archive.cloudera.com/kafka/kafka/2/kafka-0.10.0-kafka2.1.1/ops.html)
+  > - Use ```st1``` as the EBS type for better throughput [source](https://www.confluent.io/blog/design-and-deployment-considerations-for-deploying-apache-kafka-on-aws/)
+  > - Change the number of open file descriptor to a high number 
+  >  ```
+  >  soft nofile 50000 | sudo tee - append /etc/security/limits.conf
+  > ```
+  >  - Set the linux kernal parameter ` vm.swappiness` to 1. [source](https://docs.cloudera.com/cloudera-manager/7.2.2/managing-clusters/topics/cm-setting-vmswappiness-linux-kernel-parameter.html)
+  > 
+server:
+  ############################# Server Basics #############################
+  # The id of the broker. This must be set to a unique integer for each broker.
+  broker.id=3
+  # change your.host.name by your machine's IP or hostname
+  advertised.listeners=PLAINTEXT://54.237.27.192:9092
+  # Switch to enable topic deletion or not, default value is false
+  delete.topic.enable=true
+  ############################# Log Basics #############################
+  # A comma seperated list of directories under which to store log files
+  log.dirs=/data/kafka
+  # The default number of log partitions per topic. More partitions allow greater
+  # parallelism for consumption, but this will also result in more files across
+  # the brokers.
+  num.partitions=8
+  # we will have 3 brokers so the default replication factor should be 2 or 3
+  default.replication.factor=3
+  # number of ISR to have in order to minimize data loss
+  min.insync.replicas=2
+  ############################# Log Retention Policy #############################
+  # The minimum age of a log file to be eligible for deletion due to age
+  # this will delete data after a week
+  log.retention.hours=168
+  # The maximum size of a log segment file. When this size is reached a new log segment will be created.
+  log.segment.bytes=1073741824
+  # The interval at which log segments are checked to see if they can be deleted according
+  # to the retention policies
+  log.retention.check.interval.ms=300000
+  ############################# Zookeeper #############################
+  # Zookeeper connection string (see zookeeper docs for details).
+  # This is a comma separated host:port pairs, each corresponding to a zk
+  # server. e.g. "127.0.0.1:3000,127.0.0.1:3001,127.0.0.1:3002".
+  # You can also append an optional chroot string to the urls to specify the
+  # root directory for all kafka znodes.
+  zookeeper.connect=zookeeper1:2181,zookeeper2:2181,zookeeper3:2181/kafka
+  # Timeout in ms for connecting to zookeeper
+  zookeeper.connection.timeout.ms=6000
+  ############################## Other ##################################
+  auto.create.topics.enable=true
