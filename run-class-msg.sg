@@ -1,0 +1,7 @@
+#!/bin/bash
+for i in 10 100 1000 10000 100000;
+do
+echo ""
+echo $i
+bin/kafka-run-class.sh org.apache.kafka.tools.ProducerPerformance --print-metrics --topic test-rep-two --num-records  $((1000*1024*1024/$i)) --throughput 100000 --record-size $i --producer-props bootstrap.servers=kafka_host:9092 acks=1 buffer.memory=67108864 batch.size=8196
+done;
